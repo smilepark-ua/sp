@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smile Park · Маркетинг Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<style>
+:root{
+  --purple:#8431F5;
+  --purple-dark:#6B21E8;
+  --purple-light:#F3EBFE;
+  --purple-pale:#FAF7FE;
+  --bg:#F7F5FB;
+  --card:#FFFFFF;
+  --text:#1F1B2E;
+  --text-2:#6B6478;
+  --text-3:#9992A8;
+  --border:#ECE7F5;
+  --green:#16A34A;
+  --green-bg:#EAFBF1;
+  --red:#DC2626;
+  --red-bg:#FDECEC;
+  --radius:18px;
+  --radius-sm:12px;
+  --shadow:0 4px 24px rgba(132,49,245,.08);
+}
+*{box-sizing:border-box;}
+body{margin:0;font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
+a{color:inherit;}
+::-webkit-scrollbar{width:8px;height:8px;}
+::-webkit-scrollbar-thumb{background:#DCD3F0;border-radius:8px;}
+
+/* Layout */
+.app{display:flex;min-height:100vh;}
+.sidebar{width:250px;flex-shrink:0;background:var(--card);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;padding:22px 14px;position:sticky;top:0;height:100vh;}
+.brand{display:flex;align-items:center;gap:10px;padding:6px 10px 22px;}
+.brand-badge{width:38px;height:38px;border-radius:12px;background:linear-gradient(135deg,var(--purple),#B37CFA);
+  display:flex;align-items:center;justify-content:center;font-size:20px;}
+.brand-text b{display:block;font-size:15px;font-weight:800;}
+.brand-text span{display:block;font-size:12px;color:var(--text-2);}
+.nav{display:flex;flex-direction:column;gap:3px;flex:1;}
+.nav-item{display:flex;align-items:center;gap:11px;padding:11px 12px;border-radius:12px;font-weight:700;
+  font-size:14.5px;color:var(--text-2);cursor:pointer;user-select:none;transition:.15s;}
+.nav-item:hover{background:var(--purple-pale);color:var(--text);}
+.nav-item.active{background:var(--purple-light);color:var(--purple-dark);}
+.nav-icon{font-size:17px;width:20px;text-align:center;}
+.sidebar-footer{font-size:11.5px;color:var(--text-3);padding:10px 12px 0;border-top:1px solid var(--border);margin-top:10px;}
+
+.main{flex:1;min-width:0;padding:26px 34px 60px;}
+.topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:26px;flex-wrap:wrap;gap:12px;}
+.topbar h1{font-size:24px;margin:0;font-weight:800;}
+.topbar-sub{color:var(--text-2);font-size:14px;margin-top:3px;}
+
+.btn{border:none;border-radius:12px;padding:10px 18px;font-family:inherit;font-weight:700;font-size:14px;
+  cursor:pointer;transition:.15s;display:inline-flex;align-items:center;gap:8px;}
+.btn-primary{background:var(--purple);color:#fff;}
+.btn-primary:hover{background:var(--purple-dark);}
+.btn-ghost{background:var(--purple-pale);color:var(--purple-dark);}
+.btn-ghost:hover{background:var(--purple-light);}
+.btn-sm{padding:6px 12px;font-size:12.5px;border-radius:9px;}
+.btn-icon{background:none;border:none;cursor:pointer;font-size:15px;color:var(--text-3);padding:5px;border-radius:8px;}
+.btn-icon:hover{background:var(--purple-pale);color:var(--purple-dark);}
+
+/* Pages */
+.page{display:none;}
+.page.active{display:block;}
+
+/* Cards */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:22px;}
+.kpi-card{background:var(--card);border-radius:var(--radius);padding:18px 20px;box-shadow:var(--shadow);border:1px solid var(--border);}
+.kpi-label{font-size:12.5px;color:var(--text-2);font-weight:700;text-transform:uppercase;letter-spacing:.3px;margin-bottom:8px;display:flex;align-items:center;gap:6px;}
+.kpi-value{font-size:26px;font-weight:800;line-height:1.1;}
+.kpi-delta{margin-top:8px;font-size:12.5px;font-weight:700;display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:8px;}
+.kpi-delta.up{color:var(--green);background:var(--green-bg);}
+.kpi-delta.down{color:var(--red);background:var(--red-bg);}
+.kpi-delta.flat{color:var(--text-2);background:var(--purple-pale);}
+
+.section-card{background:var(--card);border-radius:var(--radius);padding:22px;box-shadow:var(--shadow);border:1px solid var(--border);margin-bottom:20px;}
+.section-card h3{margin:0 0 16px;font-size:16px;font-weight:800;}
+.card-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;}
+.card-head h3{margin:0;}
+
+.tabs{display:flex;gap:6px;background:var(--purple-pale);padding:4px;border-radius:12px;width:fit-content;margin-bottom:18px;}
+.tab{padding:8px 16px;border-radius:9px;font-weight:700;font-size:13.5px;color:var(--text-2);cursor:pointer;}
+.tab.active{background:#fff;color:var(--purple-dark);box-shadow:0 2px 6px rgba(132,49,245,.12);}
+
+.chart-wrap{position:relative;height:280px;margin-bottom:6px;}
+
+table{width:100%;border-collapse:collapse;font-size:13.5px;}
+th{text-align:left;color:var(--text-2);font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.3px;
+  padding:10px 12px;border-bottom:2px solid var(--border);}
+td{padding:11px 12px;border-bottom:1px solid var(--border);font-weight:600;}
+tr:last-child td{border-bottom:none;}
+.table-wrap{overflow-x:auto;}
+.empty-state{text-align:center;padding:40px 20px;color:var(--text-3);}
+.empty-state .e-icon{font-size:32px;margin-bottom:8px;}
+
+.badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11.5px;font-weight:700;background:var(--purple-light);color:var(--purple-dark);}
+.pill-source{display:inline-flex;align-items:center;gap:5px;font-size:12.5px;font-weight:700;padding:4px 10px;border-radius:20px;background:var(--purple-pale);}
+
+.insight-list{display:flex;flex-direction:column;gap:10px;}
+.insight-item{display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border-radius:12px;background:var(--purple-pale);font-size:13.5px;font-weight:600;}
+.insight-item .ico{font-size:16px;}
+
+/* Modal */
+.overlay{position:fixed;inset:0;background:rgba(31,27,46,.45);display:none;align-items:center;justify-content:center;z-index:100;padding:20px;}
+.overlay.active{display:flex;}
+.modal{background:#fff;border-radius:var(--radius);padding:26px;width:100%;max-width:480px;max-height:88vh;overflow-y:auto;}
+.modal h3{margin:0 0 18px;font-size:17px;font-weight:800;}
+.field{margin-bottom:14px;}
+.field label{display:block;font-size:12.5px;font-weight:700;color:var(--text-2);margin-bottom:6px;}
+.field input,.field select{width:100%;padding:10px 12px;border-radius:10px;border:1.5px solid var(--border);
+  font-family:inherit;font-size:14px;background:var(--bg);}
+.field input:focus,.field select:focus{outline:none;border-color:var(--purple);}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:20px;}
+
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--text);color:#fff;
+  padding:12px 22px;border-radius:12px;font-weight:700;font-size:13.5px;z-index:200;opacity:0;transition:.25s;pointer-events:none;}
+.toast.show{opacity:1;}
+
+.setup-banner{background:var(--purple-light);border:1.5px dashed var(--purple);border-radius:var(--radius);
+  padding:18px 22px;margin-bottom:22px;font-size:14px;font-weight:600;color:var(--purple-dark);}
+
+@media(max-width:900px){
+  .sidebar{position:fixed;left:0;top:0;bottom:0;transform:translateX(-100%);transition:.2s;z-index:150;box-shadow:0 0 30px rgba(0,0,0,.15);}
+  .sidebar.open{transform:translateX(0);}
+  .main{padding:18px;}
+  .menu-toggle{display:inline-flex !important;}
+}
+.menu-toggle{display:none;background:var(--purple-pale);border:none;border-radius:10px;width:38px;height:38px;
+  align-items:center;justify-content:center;font-size:18px;cursor:pointer;margin-right:10px;}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="brand-badge">📈</div>
+      <div class="brand-text"><b>Smile Park</b><span>Маркетинг</span></div>
+    </div>
+    <div class="nav">
+      <div class="nav-item active" data-page="overview"><span class="nav-icon">📊</span>Головна</div>
+      <div class="nav-item" data-page="social"><span class="nav-icon">📱</span>Соціальні мережі</div>
+      <div class="nav-item" data-page="ads"><span class="nav-icon">📢</span>Реклама</div>
+      <div class="nav-item" data-page="appstats"><span class="nav-icon">📲</span>Застосунок</div>
+      <div class="nav-item" data-page="push"><span class="nav-icon">🔔</span>Push-повідомлення</div>
+      <div class="nav-item" data-page="leads"><span class="nav-icon">📝</span>Заявки</div>
+    </div>
+    <div class="sidebar-footer">Дані оновлюються вручну.<br>Наступний крок — API-інтеграції.</div>
+  </div>
+
+  <div class="main">
+    <button class="menu-toggle" id="menuToggle">☰</button>
+
+    <div id="setupBanner" class="setup-banner" style="display:none;">
+      ⚠️ Підключення до бази ще не налаштоване. Відкрий файл, знайди рядки <code>SUPABASE_URL</code> і
+      <code>SUPABASE_ANON_KEY</code> на початку тегу &lt;script&gt; та встав свої дані з нового Supabase-проєкту.
+    </div>
+
+    <!-- OVERVIEW -->
+    <div class="page active" id="page-overview">
+      <div class="topbar">
+        <div><h1>Головна</h1><div class="topbar-sub">Загальний стан маркетингу Smile Park за останній період</div></div>
+        <select class="field" id="overviewPeriodInfo" style="width:auto;padding:9px 14px;border-radius:10px;border:1.5px solid var(--border);font-weight:700;background:#fff;" disabled></select>
+      </div>
+      <div class="kpi-grid" id="overviewKpis"></div>
+      <div class="section-card">
+        <div class="card-head">
+          <h3>Динаміка за 12 місяців</h3>
+          <select id="trendMetricSelect" style="padding:8px 12px;border-radius:10px;border:1.5px solid var(--border);font-weight:700;font-family:inherit;">
+            <option value="reach">Загальне охоплення</option>
+            <option value="spend">Витрати на рекламу</option>
+            <option value="ig_followers">Підписники Instagram</option>
+            <option value="tt_followers">Підписники TikTok</option>
+            <option value="downloads">Завантаження застосунку</option>
+            <option value="leads">Заявки</option>
+          </select>
+        </div>
+        <div class="chart-wrap"><canvas id="trendChart"></canvas></div>
+      </div>
+      <div class="section-card">
+        <h3>💡 Ключові інсайти</h3>
+        <div class="insight-list" id="insightsList"></div>
+      </div>
+    </div>
+
+    <!-- SOCIAL -->
+    <div class="page" id="page-social">
+      <div class="topbar">
+        <div><h1>Соціальні мережі</h1><div class="topbar-sub">Instagram і TikTok — охоплення, залучення, приріст</div></div>
+        <button class="btn btn-primary" onclick="openSocialForm()">+ Додати запис</button>
+      </div>
+      <div class="tabs">
+        <div class="tab active" data-tab="instagram" onclick="switchSocialTab('instagram')">Instagram</div>
+        <div class="tab" data-tab="tiktok" onclick="switchSocialTab('tiktok')">TikTok</div>
+      </div>
+      <div class="kpi-grid" id="socialKpis"></div>
+      <div class="section-card">
+        <h3>Динаміка залучення</h3>
+        <div class="chart-wrap"><canvas id="socialChart"></canvas></div>
+      </div>
+      <div class="section-card">
+        <div class="card-head"><h3>Історія записів</h3></div>
+        <div class="table-wrap" id="socialTable"></div>
+      </div>
+    </div>
+
+    <!-- ADS -->
+    <div class="page" id="page-ads">
+      <div class="topbar">
+        <div><h1>Реклама</h1><div class="topbar-sub">Meta Ads · Google Ads · TikTok Ads</div></div>
+        <button class="btn btn-primary" onclick="openAdsForm()">+ Додати запис</button>
+      </div>
+      <div class="card-head" style="margin-bottom:0;">
+        <div class="tabs" style="margin-bottom:0;">
+          <div class="tab active" data-tab="meta" onclick="switchAdsTab('meta')">Meta Ads</div>
+          <div class="tab" data-tab="google" onclick="switchAdsTab('google')">Google Ads</div>
+          <div class="tab" data-tab="tiktok" onclick="switchAdsTab('tiktok')">TikTok Ads</div>
+        </div>
+        <select id="adsParkFilter" onchange="switchAdsPark(this.value)" style="padding:9px 14px;border-radius:10px;border:1.5px solid var(--border);font-weight:700;font-family:inherit;background:#fff;">
+          <option value="all">Усі комплекси</option>
+        </select>
+      </div>
+      <div style="height:18px;"></div>
+      <div class="kpi-grid" id="adsKpis"></div>
+      <div class="section-card">
+        <h3>Витрати та результати</h3>
+        <div class="chart-wrap"><canvas id="adsChart"></canvas></div>
+      </div>
+      <div class="section-card">
+        <div class="card-head"><h3>Історія записів</h3></div>
+        <div class="table-wrap" id="adsTable"></div>
+      </div>
+    </div>
+
+    <!-- APP -->
+    <div class="page" id="page-appstats">
+      <div class="topbar">
+        <div><h1>Мобільний застосунок</h1><div class="topbar-sub">Завантаження та користувачі</div></div>
+        <button class="btn btn-primary" onclick="openAppForm()">+ Додати запис</button>
+      </div>
+      <div class="card-head">
+        <select id="appParkFilter" onchange="switchAppPark(this.value)" style="padding:9px 14px;border-radius:10px;border:1.5px solid var(--border);font-weight:700;font-family:inherit;background:#fff;">
+          <option value="all">Усі комплекси</option>
+        </select>
+      </div>
+      <div class="kpi-grid" id="appKpis"></div>
+      <div class="section-card">
+        <h3>Динаміка завантажень</h3>
+        <div class="chart-wrap"><canvas id="appChart"></canvas></div>
+      </div>
+      <div class="section-card">
+        <div class="card-head"><h3>Історія записів</h3></div>
+        <div class="table-wrap" id="appTable"></div>
+      </div>
+    </div>
+
+    <!-- PUSH -->
+    <div class="page" id="page-push">
+      <div class="topbar">
+        <div><h1>Push-повідомлення</h1><div class="topbar-sub">Історія кампаній (ручне введення до інтеграції з OneSignal)</div></div>
+        <button class="btn btn-primary" onclick="openPushForm()">+ Додати кампанію</button>
+      </div>
+      <div class="kpi-grid" id="pushKpis"></div>
+      <div class="section-card">
+        <div class="card-head"><h3>Історія кампаній</h3></div>
+        <div class="table-wrap" id="pushTable"></div>
+      </div>
+    </div>
+
+    <!-- LEADS -->
+    <div class="page" id="page-leads">
+      <div class="topbar">
+        <div><h1>Заявки</h1><div class="topbar-sub">Розподіл заявок по джерелах та комплексах</div></div>
+        <button class="btn btn-primary" onclick="openLeadsForm()">+ Додати запис</button>
+      </div>
+      <div class="card-head">
+        <select id="leadsParkFilter" onchange="switchLeadsPark(this.value)" style="padding:9px 14px;border-radius:10px;border:1.5px solid var(--border);font-weight:700;font-family:inherit;background:#fff;">
+          <option value="all">Усі комплекси</option>
+        </select>
+      </div>
+      <div class="kpi-grid" id="leadsKpis"></div>
+      <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:20px;" id="leadsGrid">
+        <div class="section-card">
+          <h3>Динаміка заявок</h3>
+          <div class="chart-wrap"><canvas id="leadsChart"></canvas></div>
+        </div>
+        <div class="section-card">
+          <h3>Розподіл по джерелах</h3>
+          <div class="chart-wrap"><canvas id="leadsPie"></canvas></div>
+        </div>
+      </div>
+      <div class="section-card">
+        <div class="card-head"><h3>Історія записів</h3></div>
+        <div class="table-wrap" id="leadsTable"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="overlay" id="overlay"><div class="modal" id="modalBody"></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============ CONFIG ============ */
+const SUPABASE_URL = 'https://gqvksbrfubfupucyxdwv.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_TrJSzbBh50cE6CZG0C7PGA_3NCQtfMV';
+let sb = null;
+let DB_READY = false;
+try{
+  if(SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY.length > 10){
+    sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    DB_READY = true;
+  }
+}catch(e){ console.error(e); }
+if(!DB_READY) document.getElementById('setupBanner').style.display = 'block';
+
+const SOURCE_LABELS = {website:'Сайт', app:'Застосунок', instagram:'Instagram', tiktok:'TikTok', phone:'Телефон', other:'Інше'};
+const PLATFORM_LABELS = {instagram:'Instagram', tiktok:'TikTok', meta:'Meta Ads', google:'Google Ads'};
+const PARK_LABELS = {troieshchyna:'Київ, Троєщина', darynok:'Київ, Даринок', kharkiv:'Харків', lviv:'Львів'};
+const PARK_KEYS = Object.keys(PARK_LABELS);
+function fillParkOptions(selectEl, {includeAll=true, includeBrand=false}={}){
+  let html = includeAll ? '<option value="all">Усі комплекси</option>' : '';
+  if(includeBrand) html += '<option value="">Без прив\u2019язки (бренд загалом)</option>';
+  html += PARK_KEYS.map(k=>`<option value="${k}">${PARK_LABELS[k]}</option>`).join('');
+  selectEl.innerHTML = html;
+}
+document.addEventListener('DOMContentLoaded', ()=>{
+  fillParkOptions(document.getElementById('adsParkFilter'));
+  fillParkOptions(document.getElementById('appParkFilter'));
+  fillParkOptions(document.getElementById('leadsParkFilter'));
+});
+function aggregateByPeriod(rows, sumFields){
+  const map = {};
+  rows.forEach(r=>{
+    const key = r.period_start+'|'+r.period_end;
+    if(!map[key]) map[key] = {period_start:r.period_start, period_end:r.period_end};
+    sumFields.forEach(f=>{ map[key][f] = (map[key][f]||0) + (Number(r[f])||0); });
+  });
+  return Object.values(map).sort((a,b)=>new Date(a.period_start)-new Date(b.period_start));
+}
+
+/* ============ HELPERS ============ */
+function fmtNum(n){ if(n===null||n===undefined||isNaN(n)) return '—'; return new Intl.NumberFormat('uk-UA').format(Math.round(n*10)/10); }
+function fmtPct(n){ if(n===null||n===undefined||!isFinite(n)) return '—'; return (n>0?'+':'') + n.toFixed(1) + '%'; }
+function fmtMoney(n){ if(n===null||n===undefined||isNaN(n)) return '—'; return new Intl.NumberFormat('uk-UA',{maximumFractionDigits:0}).format(n) + ' ₴'; }
+function fmtDate(d){ if(!d) return '—'; const dt = new Date(d); return dt.toLocaleDateString('uk-UA',{day:'2-digit',month:'2-digit',year:'numeric'}); }
+function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'), 2600); }
+function deltaHtml(curr, prev){
+  if(prev===null||prev===undefined||prev===0||curr===null||curr===undefined) return `<span class="kpi-delta flat">— порівняно з поперед. періодом</span>`;
+  const pct = ((curr-prev)/Math.abs(prev))*100;
+  const cls = pct>0.05?'up':(pct<-0.05?'down':'flat');
+  const arrow = pct>0.05?'↑':(pct<-0.05?'↓':'→');
+  return `<span class="kpi-delta ${cls}">${arrow} ${fmtPct(pct)} до попер. періоду</span>`;
+}
+function myName(){
+  let n = localStorage.getItem('sp_marketing_user');
+  if(!n){ n = prompt('Як тебе підписувати у записах? (можна залишити порожнім)') || ''; localStorage.setItem('sp_marketing_user', n); }
+  return n;
+}
+async function dbSelect(table, filters={}){
+  if(!DB_READY) return [];
+  let q = sb.from(table).select('*');
+  for(const k in filters) q = q.eq(k, filters[k]);
+  q = q.order('period_start', {ascending:true, nullsFirst:true});
+  const {data, error} = await q;
+  if(error){ console.error(error); toast('Помилка завантаження даних'); return []; }
+  return data || [];
+}
+async function dbInsert(table, row){
+  if(!DB_READY){ toast('Спочатку підключи Supabase (див. банер вгорі)'); return false; }
+  const {error} = await sb.from(table).insert(row);
+  if(error){ console.error(error); toast('Помилка збереження'); return false; }
+  toast('Збережено ✓'); return true;
+}
+async function dbUpdate(table, id, row){
+  const {error} = await sb.from(table).update(row).eq('id', id);
+  if(error){ console.error(error); toast('Помилка оновлення'); return false; }
+  toast('Оновлено ✓'); return true;
+}
+async function dbDelete(table, id){
+  if(!confirm('Видалити цей запис?')) return false;
+  const {error} = await sb.from(table).delete().eq('id', id);
+  if(error){ console.error(error); toast('Помилка видалення'); return false; }
+  toast('Видалено'); return true;
+}
+function destroyChart(ref){ if(window[ref]){ window[ref].destroy(); window[ref]=null; } }
+
+/* ============ NAV ============ */
+document.querySelectorAll('.nav-item').forEach(el=>{
+  el.addEventListener('click', ()=>navigateTo(el.dataset.page));
+});
+document.getElementById('menuToggle').addEventListener('click', ()=>document.getElementById('sidebar').classList.toggle('open'));
+
+function navigateTo(page){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-'+page).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active', n.dataset.page===page));
+  document.getElementById('sidebar').classList.remove('open');
+  loadPage(page);
+}
+function loadPage(page){
+  if(page==='overview') loadOverview();
+  if(page==='social') loadSocial();
+  if(page==='ads') loadAds();
+  if(page==='appstats') loadApp();
+  if(page==='push') loadPush();
+  if(page==='leads') loadLeads();
+}
+
+/* ============ MODAL ============ */
+function closeModal(){ document.getElementById('overlay').classList.remove('active'); }
+function renderModal(title, fieldsHtml, onSave){
+  document.getElementById('modalBody').innerHTML = `
+    <h3>${title}</h3>
+    <form id="modalForm">${fieldsHtml}</form>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" type="button" onclick="closeModal()">Скасувати</button>
+      <button class="btn btn-primary" type="button" id="modalSaveBtn">Зберегти</button>
+    </div>`;
+  document.getElementById('overlay').classList.add('active');
+  document.getElementById('modalSaveBtn').onclick = onSave;
+}
+function fVal(id){ const el = document.getElementById(id); if(!el) return null; const v = el.value; if(el.type==='number') return v===''?null:parseFloat(v); return v||null; }
+
+/* ============================================================
+   OVERVIEW
+   ============================================================ */
+async function loadOverview(){
+  const [social, ads, app, leads, push] = await Promise.all([
+    dbSelect('social_stats'), dbSelect('ads_stats'), dbSelect('app_stats'), dbSelect('leads_stats'), dbSelect('push_campaigns')
+  ]);
+
+  function latestTwoByPlatform(rows, platform){
+    const f = rows.filter(r=>r.platform===platform).sort((a,b)=>new Date(a.period_start)-new Date(b.period_start));
+    return [f[f.length-1]||null, f[f.length-2]||null];
+  }
+  function sumByPeriod(rows, periodStart, field){
+    return rows.filter(r=>r.period_start===periodStart).reduce((s,r)=>s+(Number(r[field])||0),0);
+  }
+  function latestPeriod(rows){
+    const starts = [...new Set(rows.map(r=>r.period_start))].sort((a,b)=>new Date(b)-new Date(a));
+    return [starts[0]||null, starts[1]||null];
+  }
+
+  const [igLatest, igPrev] = latestTwoByPlatform(social, 'instagram');
+  const [ttLatest, ttPrev] = latestTwoByPlatform(social, 'tiktok');
+  const [adsP1, adsP2] = latestPeriod(ads);
+  const [leadsP1, leadsP2] = latestPeriod(leads);
+  const [appLatest, appPrev] = (()=>{ const s=[...app].sort((a,b)=>new Date(a.period_start)-new Date(b.period_start)); return [s[s.length-1]||null, s[s.length-2]||null]; })();
+
+  const reachNow = (igLatest?.reach||0)+(ttLatest?.reach||0)+sumByPeriod(ads, adsP1, 'reach');
+  const reachPrev = (igPrev?.reach||0)+(ttPrev?.reach||0)+sumByPeriod(ads, adsP2, 'reach');
+  const spendNow = sumByPeriod(ads, adsP1, 'spend'); const spendPrev = sumByPeriod(ads, adsP2, 'spend');
+  const clicksNow = sumByPeriod(ads, adsP1, 'clicks'); const impNow = sumByPeriod(ads, adsP1, 'impressions');
+  const clicksPrev = sumByPeriod(ads, adsP2, 'clicks'); const impPrev = sumByPeriod(ads, adsP2, 'impressions');
+  const ctrNow = impNow ? clicksNow/impNow*100 : null; const ctrPrev = impPrev ? clicksPrev/impPrev*100 : null;
+  const leadsNow = sumByPeriod(leads, leadsP1, 'count'); const leadsPrev = sumByPeriod(leads, leadsP2, 'count');
+  const erIg = igLatest && igLatest.followers ? igLatest.engagements/igLatest.followers*100 : null;
+  const erTt = ttLatest && ttLatest.followers ? ttLatest.engagements/ttLatest.followers*100 : null;
+  const erNow = (erIg!==null||erTt!==null) ? [erIg,erTt].filter(x=>x!==null).reduce((a,b)=>a+b,0)/[erIg,erTt].filter(x=>x!==null).length : null;
+  const erIgPrev = igPrev && igPrev.followers ? igPrev.engagements/igPrev.followers*100 : null;
+  const erTtPrev = ttPrev && ttPrev.followers ? ttPrev.engagements/ttPrev.followers*100 : null;
+  const erPrev = (erIgPrev!==null||erTtPrev!==null) ? [erIgPrev,erTtPrev].filter(x=>x!==null).reduce((a,b)=>a+b,0)/[erIgPrev,erTtPrev].filter(x=>x!==null).length : null;
+  const pushSorted = [...push].sort((a,b)=>new Date(a.date)-new Date(b.date));
+  const pushLatest = pushSorted[pushSorted.length-1]||null, pushPrev = pushSorted[pushSorted.length-2]||null;
+  const openRateNow = pushLatest && pushLatest.delivered ? pushLatest.opened/pushLatest.delivered*100 : null;
+  const openRatePrev = pushPrev && pushPrev.delivered ? pushPrev.opened/pushPrev.delivered*100 : null;
+
+  const cards = [
+    ['🌍 Загальне охоплення', fmtNum(reachNow), deltaHtml(reachNow, reachPrev)],
+    ['💸 Витрати на рекламу', fmtMoney(spendNow), deltaHtml(spendNow, spendPrev)],
+    ['📸 Підписники Instagram', fmtNum(igLatest?.followers), deltaHtml(igLatest?.followers, igPrev?.followers)],
+    ['🎵 Підписники TikTok', fmtNum(ttLatest?.followers), deltaHtml(ttLatest?.followers, ttPrev?.followers)],
+    ['📲 Завантаження застосунку', fmtNum(appLatest?.downloads), deltaHtml(appLatest?.downloads, appPrev?.downloads)],
+    ['📝 Кількість заявок', fmtNum(leadsNow), deltaHtml(leadsNow, leadsPrev)],
+    ['🎯 CTR реклами', ctrNow!==null?ctrNow.toFixed(2)+'%':'—', deltaHtml(ctrNow, ctrPrev)],
+    ['❤️ Engagement Rate', erNow!==null?erNow.toFixed(2)+'%':'—', deltaHtml(erNow, erPrev)],
+    ['🔔 Open Rate push', openRateNow!==null?openRateNow.toFixed(1)+'%':'—', deltaHtml(openRateNow, openRatePrev)],
+  ];
+  document.getElementById('overviewKpis').innerHTML = cards.map(([l,v,d])=>`
+    <div class="kpi-card"><div class="kpi-label">${l}</div><div class="kpi-value">${v}</div>${d}</div>`).join('');
+
+  // insights: top changes
+  const changeCandidates = [
+    ['Охоплення', reachNow, reachPrev], ['Витрати на рекламу', spendNow, spendPrev],
+    ['Підписники Instagram', igLatest?.followers, igPrev?.followers], ['Підписники TikTok', ttLatest?.followers, ttPrev?.followers],
+    ['Заявки', leadsNow, leadsPrev], ['CTR реклами', ctrNow, ctrPrev], ['Engagement Rate', erNow, erPrev],
+  ].filter(([,c,p])=>c!==null&&c!==undefined&&p!==null&&p!==undefined&&p!==0)
+   .map(([label,c,p])=>[label, ((c-p)/Math.abs(p))*100])
+   .sort((a,b)=>Math.abs(b[1])-Math.abs(a[1]));
+
+  const insightsEl = document.getElementById('insightsList');
+  if(changeCandidates.length===0){
+    insightsEl.innerHTML = `<div class="empty-state"><div class="e-icon">💡</div>Ще недостатньо даних для порівняння — додай записи хоча б за два періоди.</div>`;
+  } else {
+    insightsEl.innerHTML = changeCandidates.slice(0,4).map(([label,pct])=>{
+      const up = pct>0;
+      return `<div class="insight-item"><span class="ico">${up?'📈':'📉'}</span>${label} ${up?'зросло':'знизилось'} на ${Math.abs(pct).toFixed(1)}% порівняно з попереднім періодом.</div>`;
+    }).join('');
+  }
+
+  loadTrendChart(social, ads, app, leads);
+  document.getElementById('trendMetricSelect').onchange = ()=>loadTrendChart(social, ads, app, leads);
+}
+
+function monthKey(d){ const dt=new Date(d); return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0'); }
+function last12Months(){
+  const arr=[]; const now=new Date();
+  for(let i=11;i>=0;i--){ const d=new Date(now.getFullYear(), now.getMonth()-i, 1); arr.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')); }
+  return arr;
+}
+function loadTrendChart(social, ads, app, leads){
+  const metric = document.getElementById('trendMetricSelect').value;
+  const months = last12Months();
+  let values;
+  if(metric==='reach'){
+    const byMonth = {}; months.forEach(m=>byMonth[m]=0);
+    [...social.filter(r=>r.reach), ...ads.filter(r=>r.reach)].forEach(r=>{ const m=monthKey(r.period_start); if(m in byMonth) byMonth[m]+=Number(r.reach)||0; });
+    values = months.map(m=>byMonth[m]);
+  } else if(metric==='spend'){
+    const byMonth={}; months.forEach(m=>byMonth[m]=0);
+    ads.forEach(r=>{ const m=monthKey(r.period_start); if(m in byMonth) byMonth[m]+=Number(r.spend)||0; });
+    values = months.map(m=>byMonth[m]);
+  } else if(metric==='ig_followers' || metric==='tt_followers'){
+    const platform = metric==='ig_followers'?'instagram':'tiktok';
+    const rows = social.filter(r=>r.platform===platform).sort((a,b)=>new Date(a.period_start)-new Date(b.period_start));
+    const byMonth={};
+    rows.forEach(r=>{ byMonth[monthKey(r.period_start)] = r.followers; });
+    let last=null;
+    values = months.map(m=>{ if(byMonth[m]!==undefined){ last=byMonth[m]; } return last; });
+  } else if(metric==='downloads'){
+    const byMonth={}; months.forEach(m=>byMonth[m]=0);
+    app.forEach(r=>{ const m=monthKey(r.period_start); if(m in byMonth) byMonth[m]+=Number(r.downloads)||0; });
+    values = months.map(m=>byMonth[m]);
+  } else if(metric==='leads'){
+    const byMonth={}; months.forEach(m=>byMonth[m]=0);
+    leads.forEach(r=>{ const m=monthKey(r.period_start); if(m in byMonth) byMonth[m]+=Number(r.count)||0; });
+    values = months.map(m=>byMonth[m]);
+  }
+  const labels = months.map(m=>{ const [y,mo]=m.split('-'); return new Date(y,mo-1,1).toLocaleDateString('uk-UA',{month:'short'}); });
+  destroyChart('trendChartInst');
+  const ctx = document.getElementById('trendChart');
+  window.trendChartInst = new Chart(ctx, {
+    type:'line',
+    data:{labels, datasets:[{data:values, borderColor:'#8431F5', backgroundColor:'rgba(132,49,245,.08)', fill:true, tension:.35, pointRadius:3, pointBackgroundColor:'#8431F5'}]},
+    options:{plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true, grid:{color:'#F0EBFA'}}, x:{grid:{display:false}}}}
+  });
+}
+
+/* ============================================================
+   SOCIAL
+   ============================================================ */
+let currentSocialTab = 'instagram';
+function switchSocialTab(tab){
+  currentSocialTab = tab;
+  document.querySelectorAll('#page-social .tab').forEach(t=>t.classList.toggle('active', t.dataset.tab===tab));
+  loadSocial();
+}
+async function loadSocial(){
+  const rows = await dbSelect('social_stats', {platform: currentSocialTab});
+  const sorted = [...rows].sort((a,b)=>new Date(a.period_start)-new Date(b.period_start));
+  const latest = sorted[sorted.length-1] || null, prev = sorted[sorted.length-2] || null;
+  const er = latest && latest.followers ? latest.engagements/latest.followers*100 : null;
+  const err = latest && latest.reach ? latest.engagements/latest.reach*100 : null;
+  const erPrev = prev && prev.followers ? prev.engagements/prev.followers*100 : null;
+
+  document.getElementById('socialKpis').innerHTML = [
+    ['Підписники', fmtNum(latest?.followers), deltaHtml(latest?.followers, prev?.followers)],
+    ['Охоплення', fmtNum(latest?.reach), deltaHtml(latest?.reach, prev?.reach)],
+    ['Покази', fmtNum(latest?.impressions), deltaHtml(latest?.impressions, prev?.impressions)],
+    ['Взаємодії', fmtNum(latest?.engagements), deltaHtml(latest?.engagements, prev?.engagements)],
+    ['Engagement Rate', er!==null?er.toFixed(2)+'%':'—', deltaHtml(er, erPrev)],
+    ['ERR (на охоплення)', err!==null?err.toFixed(2)+'%':'—', ''],
+  ].map(([l,v,d])=>`<div class="kpi-card"><div class="kpi-label">${l}</div><div class="kpi-value">${v}</div>${d}</div>`).join('');
+
+  destroyChart('socialChartInst');
+  window.socialChartInst = new Chart(document.getElementById('socialChart'), {
+    type:'line',
+    data:{ labels: sorted.map(r=>fmtDate(r.period_start)),
+      datasets:[
+        {label:'Охоплення', data:sorted.map(r=>r.reach), borderColor:'#8431F5', backgroundColor:'rgba(132,49,245,.08)', tension:.35, fill:true},
+        {label:'Взаємодії', data:sorted.map(r=>r.engagements), borderColor:'#16A34A', backgroundColor:'rgba(22,163,74,.06)', tension:.35, fill:true},
+      ]},
+    options:{plugins:{legend:{position:'top', labels:{boxWidth:10,font:{family:'Nunito',weight:700}}}}, scales:{y:{beginAtZero:true, grid:{color:'#F0EBFA'}}, x:{grid:{display:false}}}}
+  });
+
+  const tableHtml = sorted.length===0 ? `<div class="empty-state"><div class="e-icon">📱</div>Ще немає записів для ${PLATFORM_LABELS[currentSocialTab]}. Додай перший!</div>` :
+    `<table><thead><tr><th>Період</th><th>Підписники</th><th>Приріст</th><th>Охоплення</th><th>Взаємодії</th><th>ER</th><th></th></tr></thead><tbody>
+      ${[...sorted].reverse().map(r=>{
+        const erR = r.followers ? (r.engagements/r.followers*100).toFixed(2)+'%' : '—';
+        return `<tr><td>${fmtDate(r.period_start)} — ${fmtDate(r.period_end)}</td><td>${fmtNum(r.followers)}</td><td>${r.followers_growth>=0?'+':''}${fmtNum(r.followers_growth)}</td><td>${fmtNum(r.reach)}</td><td>${fmtNum(r.engagements)}</td><td>${erR}</td>
+        <td><button class="btn-icon" onclick='deleteSocial(${r.id})'>🗑</button></td></tr>`;
+      }).join('')}
+    </tbody></table>`;
+  document.getElementById('socialTable').innerHTML = tableHtml;
+}
+async function deleteSocial(id){ if(await dbDelete('social_stats', id)) loadSocial(); }
+function openSocialForm(){
+  renderModal(`Новий запис — ${PLATFORM_LABELS[currentSocialTab]}`, `
+    <div class="field-row">
+      <div class="field"><label>Початок періоду</label><input type="date" id="f_period_start" required></div>
+      <div class="field"><label>Кінець періоду</label><input type="date" id="f_period_end" required></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Підписники</label><input type="number" id="f_followers"></div>
+      <div class="field"><label>Приріст підписників</label><input type="number" id="f_followers_growth"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Охоплення</label><input type="number" id="f_reach"></div>
+      <div class="field"><label>Покази</label><input type="number" id="f_impressions"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Перегляди Reels/відео</label><input type="number" id="f_video_views"></div>
+      <div class="field"><label>Взаємодії</label><input type="number" id="f_engagements"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Лайки</label><input type="number" id="f_likes"></div>
+      <div class="field"><label>Коментарі</label><input type="number" id="f_comments"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Поширення</label><input type="number" id="f_shares"></div>
+      <div class="field"><label>Збереження</label><input type="number" id="f_saves"></div>
+    </div>
+  `, async ()=>{
+    const row = {
+      platform: currentSocialTab,
+      period_start: fVal('f_period_start'), period_end: fVal('f_period_end'),
+      followers: fVal('f_followers'), followers_growth: fVal('f_followers_growth'),
+      reach: fVal('f_reach'), impressions: fVal('f_impressions'), video_views: fVal('f_video_views'),
+      engagements: fVal('f_engagements'), likes: fVal('f_likes'), comments: fVal('f_comments'),
+      shares: fVal('f_shares'), saves: fVal('f_saves'), source:'manual', entered_by: myName(),
+    };
+    if(!row.period_start || !row.period_end){ toast('Вкажи період'); return; }
+    if(await dbInsert('social_stats', row)){ closeModal(); loadSocial(); }
+  });
+}
+
+/* ============================================================
+   ADS
+   ============================================================ */
+let currentAdsTab = 'meta';
+let currentAdsPark = 'all';
+function switchAdsTab(tab){
+  currentAdsTab = tab;
+  document.querySelectorAll('#page-ads .tab').forEach(t=>t.classList.toggle('active', t.dataset.tab===tab));
+  loadAds();
+}
+function switchAdsPark(park){ currentAdsPark = park; loadAds(); }
+async function loadAds(){
+  const allRows = await dbSelect('ads_stats', {platform: currentAdsTab});
+  const rowsForTable = currentAdsPark==='all' ? allRows : allRows.filter(r=>r.park===currentAdsPark);
+  const sorted = currentAdsPark==='all'
+    ? aggregateByPeriod(allRows, ['spend','impressions','reach','clicks','conversions','revenue'])
+    : [...rowsForTable].sort((a,b)=>new Date(a.period_start)-new Date(b.period_start));
+  const latest = sorted[sorted.length-1]||null, prev = sorted[sorted.length-2]||null;
+  function calc(r){
+    if(!r) return {};
+    return {
+      ctr: r.impressions ? r.clicks/r.impressions*100 : null,
+      cpc: r.clicks ? r.spend/r.clicks : null,
+      cpm: r.impressions ? r.spend/r.impressions*1000 : null,
+      cpa: r.conversions ? r.spend/r.conversions : null,
+      roas: (r.revenue && r.spend) ? r.revenue/r.spend : null,
+    };
+  }
+  const c = calc(latest), cp = calc(prev);
+  document.getElementById('adsKpis').innerHTML = [
+    ['Витрати', fmtMoney(latest?.spend), deltaHtml(latest?.spend, prev?.spend)],
+    ['Покази', fmtNum(latest?.impressions), deltaHtml(latest?.impressions, prev?.impressions)],
+    ['Кліки', fmtNum(latest?.clicks), deltaHtml(latest?.clicks, prev?.clicks)],
+    ['CTR', c.ctr!==null&&c.ctr!==undefined?c.ctr.toFixed(2)+'%':'—', deltaHtml(c.ctr, cp.ctr)],
+    ['CPC', c.cpc?fmtMoney(c.cpc):'—', deltaHtml(c.cpc, cp.cpc)],
+    ['CPM', c.cpm?fmtMoney(c.cpm):'—', deltaHtml(c.cpm, cp.cpm)],
+    ['Конверсії', fmtNum(latest?.conversions), deltaHtml(latest?.conversions, prev?.conversions)],
+    ['CPA', c.cpa?fmtMoney(c.cpa):'—', deltaHtml(c.cpa, cp.cpa)],
+    ['ROAS', c.roas!==null&&c.roas!==undefined?c.roas.toFixed(2)+'x':'—', deltaHtml(c.roas, cp.roas)],
+  ].map(([l,v,d])=>`<div class="kpi-card"><div class="kpi-label">${l}</div><div class="kpi-value">${v}</div>${d}</div>`).join('');
+
+  destroyChart('adsChartInst');
+  window.adsChartInst = new Chart(document.getElementById('adsChart'), {
+    type:'bar',
+    data:{ labels: sorted.map(r=>fmtDate(r.period_start)),
+      datasets:[
+        {label:'Витрати (₴)', data:sorted.map(r=>r.spend), backgroundColor:'#8431F5', borderRadius:6, yAxisID:'y'},
+        {label:'Кліки', data:sorted.map(r=>r.clicks), type:'line', borderColor:'#16A34A', yAxisID:'y1', tension:.35},
+      ]},
+    options:{plugins:{legend:{position:'top', labels:{boxWidth:10,font:{family:'Nunito',weight:700}}}},
+      scales:{ y:{beginAtZero:true, position:'left', grid:{color:'#F0EBFA'}}, y1:{beginAtZero:true, position:'right', grid:{display:false}}, x:{grid:{display:false}} }}
+  });
+
+  const tableRows = [...rowsForTable].sort((a,b)=>new Date(b.period_start)-new Date(a.period_start));
+  document.getElementById('adsTable').innerHTML = tableRows.length===0 ? `<div class="empty-state"><div class="e-icon">📢</div>Ще немає записів для ${PLATFORM_LABELS[currentAdsTab]}${currentAdsPark==='all'?'':' · '+PARK_LABELS[currentAdsPark]}.</div>` :
+    `<table><thead><tr><th>Період</th><th>Комплекс</th><th>Витрати</th><th>Покази</th><th>Кліки</th><th>CTR</th><th>Конверсії</th><th></th></tr></thead><tbody>
+      ${tableRows.map(r=>{
+        const ctr = r.impressions ? (r.clicks/r.impressions*100).toFixed(2)+'%' : '—';
+        const parkLabel = r.park ? (PARK_LABELS[r.park]||r.park) : 'Бренд загалом';
+        return `<tr><td>${fmtDate(r.period_start)} — ${fmtDate(r.period_end)}</td><td><span class="pill-source">${parkLabel}</span></td><td>${fmtMoney(r.spend)}</td><td>${fmtNum(r.impressions)}</td><td>${fmtNum(r.clicks)}</td><td>${ctr}</td><td>${fmtNum(r.conversions)}</td>
+        <td><button class="btn-icon" onclick='deleteAds(${r.id})'>🗑</button></td></tr>`;
+      }).join('')}
+    </tbody></table>`;
+}
+async function deleteAds(id){ if(await dbDelete('ads_stats', id)) loadAds(); }
+function openAdsForm(){
+  const parkOptionsHtml = '<option value="">Без прив\u2019язки (бренд загалом)</option>' + PARK_KEYS.map(k=>`<option value="${k}">${PARK_LABELS[k]}</option>`).join('');
+  renderModal(`Новий запис — ${PLATFORM_LABELS[currentAdsTab]}`, `
+    <div class="field-row">
+      <div class="field"><label>Початок періоду</label><input type="date" id="f_period_start" required></div>
+      <div class="field"><label>Кінець періоду</label><input type="date" id="f_period_end" required></div>
+    </div>
+    <div class="field"><label>Комплекс / кампанія для</label><select id="f_park">${parkOptionsHtml}</select></div>
+    <div class="field-row">
+      <div class="field"><label>Витрати (₴)</label><input type="number" step="0.01" id="f_spend"></div>
+      <div class="field"><label>Покази</label><input type="number" id="f_impressions"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Охоплення</label><input type="number" id="f_reach"></div>
+      <div class="field"><label>Кліки</label><input type="number" id="f_clicks"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Конверсії</label><input type="number" id="f_conversions"></div>
+      <div class="field"><label>Дохід (₴, необов'язково)</label><input type="number" step="0.01" id="f_revenue"></div>
+    </div>
+  `, async ()=>{
+    const row = {
+      platform: currentAdsTab, park: fVal('f_park'),
+      period_start: fVal('f_period_start'), period_end: fVal('f_period_end'),
+      spend: fVal('f_spend'), impressions: fVal('f_impressions'), reach: fVal('f_reach'),
+      clicks: fVal('f_clicks'), conversions: fVal('f_conversions'), revenue: fVal('f_revenue'),
+      source:'manual', entered_by: myName(),
+    };
+    if(!row.period_start || !row.period_end){ toast('Вкажи період'); return; }
+    if(await dbInsert('ads_stats', row)){ closeModal(); loadAds(); }
+  });
+}
+
+/* ============================================================
+   APP
+   ============================================================ */
+let currentAppPark = 'all';
+function switchAppPark(park){ currentAppPark = park; loadApp(); }
+async function loadApp(){
+  const allRows = await dbSelect('app_stats');
+  const rowsForTable = currentAppPark==='all' ? allRows : allRows.filter(r=>r.park===currentAppPark);
+  const sorted = currentAppPark==='all'
+    ? aggregateByPeriod(allRows, ['downloads','new_users','active_users'])
+    : [...rowsForTable].sort((a,b)=>new Date(a.period_start)-new Date(b.period_start));
+  const latest = sorted[sorted.length-1]||null, prev = sorted[sorted.length-2]||null;
+  document.getElementById('appKpis').innerHTML = [
+    ['Завантаження', fmtNum(latest?.downloads), deltaHtml(latest?.downloads, prev?.downloads)],
+    ['Нові користувачі', fmtNum(latest?.new_users), deltaHtml(latest?.new_users, prev?.new_users)],
+    ['Активні користувачі', fmtNum(latest?.active_users), deltaHtml(latest?.active_users, prev?.active_users)],
+  ].map(([l,v,d])=>`<div class="kpi-card"><div class="kpi-label">${l}</div><div class="kpi-value">${v}</div>${d}</div>`).join('');
+
+  destroyChart('appChartInst');
+  window.appChartInst = new Chart(document.getElementById('appChart'), {
+    type:'line',
+    data:{ labels: sorted.map(r=>fmtDate(r.period_start)),
+      datasets:[{label:'Завантаження', data:sorted.map(r=>r.downloads), borderColor:'#8431F5', backgroundColor:'rgba(132,49,245,.08)', fill:true, tension:.35}]},
+    options:{plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true, grid:{color:'#F0EBFA'}}, x:{grid:{display:false}}}}
+  });
+
+  const tableRows = [...rowsForTable].sort((a,b)=>new Date(b.period_start)-new Date(a.period_start));
+  document.getElementById('appTable').innerHTML = tableRows.length===0 ? `<div class="empty-state"><div class="e-icon">📲</div>Ще немає записів${currentAppPark==='all'?'':' для '+PARK_LABELS[currentAppPark]}.</div>` :
+    `<table><thead><tr><th>Період</th><th>Комплекс</th><th>Завантаження</th><th>Нові користувачі</th><th>Активні</th><th></th></tr></thead><tbody>
+      ${tableRows.map(r=>`<tr><td>${fmtDate(r.period_start)} — ${fmtDate(r.period_end)}</td><td><span class="pill-source">${PARK_LABELS[r.park]||r.park||'—'}</span></td><td>${fmtNum(r.downloads)}</td><td>${fmtNum(r.new_users)}</td><td>${fmtNum(r.active_users)}</td>
+      <td><button class="btn-icon" onclick='deleteApp(${r.id})'>🗑</button></td></tr>`).join('')}
+    </tbody></table>`;
+}
+async function deleteApp(id){ if(await dbDelete('app_stats', id)) loadApp(); }
+function openAppForm(){
+  const parkOptionsHtml = PARK_KEYS.map(k=>`<option value="${k}">${PARK_LABELS[k]}</option>`).join('');
+  renderModal('Новий запис — Застосунок', `
+    <div class="field-row">
+      <div class="field"><label>Початок періоду</label><input type="date" id="f_period_start" required></div>
+      <div class="field"><label>Кінець періоду</label><input type="date" id="f_period_end" required></div>
+    </div>
+    <div class="field"><label>Комплекс</label><select id="f_park">${parkOptionsHtml}</select></div>
+    <div class="field"><label>Завантаження</label><input type="number" id="f_downloads"></div>
+    <div class="field-row">
+      <div class="field"><label>Нові користувачі</label><input type="number" id="f_new_users"></div>
+      <div class="field"><label>Активні користувачі</label><input type="number" id="f_active_users"></div>
+    </div>
+  `, async ()=>{
+    const row = { period_start: fVal('f_period_start'), period_end: fVal('f_period_end'), park: fVal('f_park'),
+      downloads: fVal('f_downloads'), new_users: fVal('f_new_users'), active_users: fVal('f_active_users'), entered_by: myName() };
+    if(!row.period_start || !row.period_end){ toast('Вкажи період'); return; }
+    if(await dbInsert('app_stats', row)){ closeModal(); loadApp(); }
+  });
+}
+
+/* ============================================================
+   PUSH
+   ============================================================ */
+async function loadPush(){
+  const rows = await dbSelect('push_campaigns');
+  const sorted = [...rows].sort((a,b)=>new Date(a.date)-new Date(b.date));
+  const latest = sorted[sorted.length-1]||null, prev = sorted[sorted.length-2]||null;
+  function calc(r){ if(!r) return {}; return { openRate: r.delivered?r.opened/r.delivered*100:null, ctr: r.delivered?( (r.clicks||0)/r.delivered*100):null }; }
+  const c = calc(latest), cp = calc(prev);
+  document.getElementById('pushKpis').innerHTML = [
+    ['Останні отримувачі', fmtNum(latest?.recipients), ''],
+    ['Delivered', fmtNum(latest?.delivered), ''],
+    ['Opened', fmtNum(latest?.opened), ''],
+    ['Open Rate', c.openRate!==null&&c.openRate!==undefined?c.openRate.toFixed(1)+'%':'—', deltaHtml(c.openRate, cp.openRate)],
+    ['CTR', c.ctr!==null&&c.ctr!==undefined?c.ctr.toFixed(1)+'%':'—', deltaHtml(c.ctr, cp.ctr)],
+  ].map(([l,v,d])=>`<div class="kpi-card"><div class="kpi-label">${l}</div><div class="kpi-value">${v}</div>${d}</div>`).join('');
+
+  document.getElementById('pushTable').innerHTML = sorted.length===0 ? `<div class="empty-state"><div class="e-icon">🔔</div>Ще немає кампаній.</div>` :
+    `<table><thead><tr><th>Дата</th><th>Назва</th><th>Отримувачі</th><th>Delivered</th><th>Opened</th><th>Open Rate</th><th></th></tr></thead><tbody>
+      ${[...sorted].reverse().map(r=>{
+        const or = r.delivered ? (r.opened/r.delivered*100).toFixed(1)+'%' : '—';
+        return `<tr><td>${fmtDate(r.date)}</td><td>${r.name}</td><td>${fmtNum(r.recipients)}</td><td>${fmtNum(r.delivered)}</td><td>${fmtNum(r.opened)}</td><td>${or}</td>
+        <td><button class="btn-icon" onclick='deletePush(${r.id})'>🗑</button></td></tr>`;
+      }).join('')}
+    </tbody></table>`;
+}
+async function deletePush(id){ if(await dbDelete('push_campaigns', id)) loadPush(); }
+function openPushForm(){
+  renderModal('Нова push-кампанія', `
+    <div class="field-row">
+      <div class="field"><label>Дата</label><input type="date" id="f_date" required></div>
+      <div class="field"><label>Назва</label><input type="text" id="f_name" required></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Отримувачі</label><input type="number" id="f_recipients"></div>
+      <div class="field"><label>Delivered</label><input type="number" id="f_delivered"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Opened</label><input type="number" id="f_opened"></div>
+      <div class="field"><label>Кліки (необов'язково)</label><input type="number" id="f_clicks"></div>
+    </div>
+  `, async ()=>{
+    const row = { date: fVal('f_date'), name: fVal('f_name'), recipients: fVal('f_recipients'),
+      delivered: fVal('f_delivered'), opened: fVal('f_opened'), clicks: fVal('f_clicks'), entered_by: myName() };
+    if(!row.date || !row.name){ toast('Вкажи дату та назву'); return; }
+    if(await dbInsert('push_campaigns', row)){ closeModal(); loadPush(); }
+  });
+}
+
+/* ============================================================
+   LEADS
+   ============================================================ */
+let currentLeadsPark = 'all';
+function switchLeadsPark(park){ currentLeadsPark = park; loadLeads(); }
+async function loadLeads(){
+  const allRows = await dbSelect('leads_stats');
+  const rows = currentLeadsPark==='all' ? allRows : allRows.filter(r=>r.park===currentLeadsPark);
+  const sorted = [...rows].sort((a,b)=>new Date(a.period_start)-new Date(b.period_start));
+  const periods = [...new Set(sorted.map(r=>r.period_start))].sort((a,b)=>new Date(b)-new Date(a));
+  const p1 = periods[0], p2 = periods[1];
+  const sumFor = (p)=> sorted.filter(r=>r.period_start===p).reduce((s,r)=>s+(Number(r.count)||0),0);
+  const now = sumFor(p1), prevV = sumFor(p2);
+
+  // this week / this month totals (rough, based on last 7 / 30 days of period_start)
+  const todayMs = Date.now();
+  const weekTotal = sorted.filter(r=> (todayMs - new Date(r.period_start).getTime()) <= 7*86400000).reduce((s,r)=>s+(Number(r.count)||0),0);
+  const monthTotal = sorted.filter(r=> (todayMs - new Date(r.period_start).getTime()) <= 30*86400000).reduce((s,r)=>s+(Number(r.count)||0),0);
+
+  document.getElementById('leadsKpis').innerHTML = [
+    ['Заявок за останній період', fmtNum(now), deltaHtml(now, prevV)],
+    ['За останні 7 днів', fmtNum(weekTotal), ''],
+    ['За останні 30 днів', fmtNum(monthTotal), ''],
+  ].map(([l,v,d])=>`<div class="kpi-card"><div class="kpi-label">${l}</div><div class="kpi-value">${v}</div>${d}</div>`).join('');
+
+  // chart: totals over periods
+  const byPeriod = {};
+  sorted.forEach(r=>{ byPeriod[r.period_start] = (byPeriod[r.period_start]||0) + (Number(r.count)||0); });
+  const periodKeysAsc = Object.keys(byPeriod).sort((a,b)=>new Date(a)-new Date(b));
+  destroyChart('leadsChartInst');
+  window.leadsChartInst = new Chart(document.getElementById('leadsChart'), {
+    type:'bar',
+    data:{ labels: periodKeysAsc.map(fmtDate), datasets:[{label:'Заявки', data:periodKeysAsc.map(k=>byPeriod[k]), backgroundColor:'#8431F5', borderRadius:6}] },
+    options:{plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true, grid:{color:'#F0EBFA'}}, x:{grid:{display:false}}}}
+  });
+
+  // pie by source (latest period)
+  const bySource = {};
+  sorted.filter(r=>r.period_start===p1).forEach(r=>{ bySource[r.source] = (bySource[r.source]||0) + (Number(r.count)||0); });
+  const sourceKeys = Object.keys(bySource);
+  destroyChart('leadsPieInst');
+  window.leadsPieInst = new Chart(document.getElementById('leadsPie'), {
+    type:'doughnut',
+    data:{ labels: sourceKeys.map(k=>SOURCE_LABELS[k]||k), datasets:[{data: sourceKeys.map(k=>bySource[k]),
+      backgroundColor:['#8431F5','#B37CFA','#16A34A','#F59E0B','#DC2626','#3B82F6']}] },
+    options:{plugins:{legend:{position:'bottom', labels:{boxWidth:10,font:{family:'Nunito',weight:700}}}}}
+  });
+
+  document.getElementById('leadsTable').innerHTML = sorted.length===0 ? `<div class="empty-state"><div class="e-icon">📝</div>Ще немає записів${currentLeadsPark==='all'?'':' для '+PARK_LABELS[currentLeadsPark]}.</div>` :
+    `<table><thead><tr><th>Період</th><th>Комплекс</th><th>Джерело</th><th>Кількість</th><th></th></tr></thead><tbody>
+      ${[...sorted].reverse().map(r=>`<tr><td>${fmtDate(r.period_start)} — ${fmtDate(r.period_end)}</td><td><span class="pill-source">${PARK_LABELS[r.park]||r.park||'—'}</span></td><td><span class="pill-source">${SOURCE_LABELS[r.source]||r.source}</span></td><td>${fmtNum(r.count)}</td>
+      <td><button class="btn-icon" onclick='deleteLeads(${r.id})'>🗑</button></td></tr>`).join('')}
+    </tbody></table>`;
+}
+async function deleteLeads(id){ if(await dbDelete('leads_stats', id)) loadLeads(); }
+function openLeadsForm(){
+  const parkOptionsHtml = PARK_KEYS.map(k=>`<option value="${k}">${PARK_LABELS[k]}</option>`).join('');
+  renderModal('Новий запис — Заявки', `
+    <div class="field-row">
+      <div class="field"><label>Початок періоду</label><input type="date" id="f_period_start" required></div>
+      <div class="field"><label>Кінець періоду</label><input type="date" id="f_period_end" required></div>
+    </div>
+    <div class="field"><label>Комплекс</label><select id="f_park">${parkOptionsHtml}</select></div>
+    <div class="field">
+      <label>Джерело</label>
+      <select id="f_source">
+        <option value="website">Сайт</option>
+        <option value="app">Мобільний застосунок</option>
+        <option value="instagram">Instagram</option>
+        <option value="tiktok">TikTok</option>
+        <option value="phone">Телефон</option>
+        <option value="other">Інше</option>
+      </select>
+    </div>
+    <div class="field"><label>Кількість заявок</label><input type="number" id="f_count" required></div>
+  `, async ()=>{
+    const row = { period_start: fVal('f_period_start'), period_end: fVal('f_period_end'), park: fVal('f_park'), source: fVal('f_source'), count: fVal('f_count'), entered_by: myName() };
+    if(!row.period_start || !row.period_end || !row.count){ toast("Заповни всі обов'язкові поля"); return; }
+    if(await dbInsert('leads_stats', row)){ closeModal(); loadLeads(); }
+  });
+}
+
+/* ============ INIT ============ */
+loadOverview();
+</script>
+</body>
+</html>
